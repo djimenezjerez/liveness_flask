@@ -52,11 +52,13 @@ else:
 # Construcción de parámetros de análisis facial
 mdists = np.zeros((4, 1), dtype=np.float64)
 
+# Restringir consultas a application/json
 @app.before_request
 def only_json():
   if not request.is_json:
-    return jsonify(message='Only json request is allowed'), 400
+    return jsonify(message='Solo se permiten consultas de tipo application/json'), 400
 
+# Generar modelo facial en base a una imagen
 @app.route('/api/v1/build', methods=['POST'])
 def build_post():
   request_data = request.get_json()
@@ -101,7 +103,46 @@ def build_post():
       'message': 'Imagen inválida',
     }), 400
 
+# Eliminar imagen y modelo facial
+@app.route('/api/v1/remove', methods=['POST'])
+def remove_post():
+  request_data = request.get_json()
 
+  # Validación parámetro image
+  if not 'image' in request_data:
+    return jsonify(message='El parámetro image es requerido'), 400
+  else:
+    if not isinstance(request_data['image'], str) or len(request_data['image']) < 5 or request_data['image'] is None:
+      return jsonify(message='El parámetro image es requerido'), 400
+
+  # Validación parámetro path
+  if not 'path' in request_data:
+    return jsonify(message='El parámetro path es requerido'), 400
+  elif not isinstance(request_data['path'], str) or request_data['path'] is None:
+    return jsonify(message='El parámetro path debe ser una cadena de texto'), 400
+  else:
+    if not os.path.exists(request_data['path']):
+      return jsonify(message='Ruta de almacenamiento es inválida'), 400
+
+  image_path = os.path.join(request_data['path'], request_data['image'])
+  if os.path.exists(image_path):
+    os.remove(image_path)
+
+  encoding_file = os.path.join(request_data['path'], request_data['image'].split('.')[0]+'.npy')
+  if os.path.exists(encoding_file):
+    os.remove(encoding_file)
+
+  return jsonify({
+    'message': 'Archivos eliminados',
+    'data': {
+      'deleted': {
+        'image': image_path,
+        'model': encoding_file
+      }
+    }
+  })
+
+# Comparar una imagen con los modelos generados en un directorio
 @app.route('/api/v1/verify', methods=['POST'])
 def verify_post():
   request_data = request.get_json()
@@ -112,6 +153,8 @@ def verify_post():
   else:
     if not isinstance(request_data['threshold'], float) or request_data['threshold'] <= 0 or request_data['threshold'] is None:
       return jsonify(message='El parámetro threshold debe ser mayor a 0'), 400
+    else:
+      threshold = request_data['threshold']
 
   # Validación parámetro image
   if not 'image' in request_data:
@@ -151,8 +194,6 @@ def verify_post():
     else:
       verified = False
 
-    print(verified)
-
     return jsonify({
       'message': 'Verificación realizada',
       'data': {
@@ -165,7 +206,7 @@ def verify_post():
       'message': 'Imagen inválida',
     }), 400
 
-
+# Comparar una imagen con los modelos generados en un directorio
 @app.route('/api/v1/analyze', methods=['POST'])
 def analyze_post():
   request_data = request.get_json()
@@ -262,11 +303,12 @@ def analyze_post():
       'message': 'Imagen inválida',
     }), 400
 
+# Aplicación principal
 if __name__ == '__main__':
   app.run(
     app,
-    host = '0.0.0.0',
-    port = int(os.environ.get('APP_PORT')),
-    debug = utils.str2bool(os.environ.get('APP_DEBUG')),
+    host='0.0.0.0',
+    port=int(os.environ.get('APP_PORT')),
+    debug=utils.str2bool(os.environ.get('APP_DEBUG')),
     threaded=False,
   )
