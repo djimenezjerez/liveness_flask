@@ -1,7 +1,7 @@
 import numpy as np
 
 def str2bool(v):
-  return v.lower() in ('yes', 'true', 't', '1')
+  return v.lower() in ('yes', 'y', 'true', 't', '1')
 
 def ref3DModel():
   modelPoints = [
