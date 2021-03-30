@@ -35,13 +35,7 @@ predictor = dlib.shape_predictor(str(Path.home())+'/.deepface/weights/shape_pred
 
 import uuid
 import json
-
-# Construcción del modelo para verificación de paridad
-if not os.environ.get('DF_VERIFY_MODEL') in ['VGG-Face', 'Facenet', 'OpenFace', 'DeepFace', 'DeepID', 'Dlib']:
-  print('Modelo de verificación desconocido, opciones diponibles: '+', '.join(available_verify))
-  exit(1)
-else:
-  model_verify = DeepFace.build_model(os.environ.get('DF_VERIFY_MODEL'))
+import face_recognition
 
 # Construcción del modelo para acciones de análisis
 available_actions = ['Emotion', 'Age', 'Gender', 'Race']
@@ -55,18 +49,6 @@ else:
   for action in actions:
     model_actions[action.lower()] = DeepFace.build_model(action)
 
-# Construcción del modelo para verificación de paridad
-available_metrics = ['cosine', 'euclidean', 'euclidean_l2']
-if not os.environ.get('DF_VERIFY_METRIC') in available_metrics:
-  print('Métrica de distancia desconocida, opciones diponibles: '+', '.join(available_metrics))
-  exit(1)
-
-# Construcción del modelo para verificación de paridad
-available_backends = ['mtcnn', 'opencv', 'ssd', 'dlib']
-if not os.environ.get('DF_VERIFY_BACKEND') in available_backends:
-  print('Métrica de distancia desconocida, opciones diponibles: '+', '.join(available_backends))
-  exit(1)
-
 # Construcción de parámetros de análisis facial
 mdists = np.zeros((4, 1), dtype=np.float64)
 
@@ -75,8 +57,8 @@ def only_json():
   if not request.is_json:
     return jsonify(message='Only json request is allowed'), 400
 
-@app.route('/api/v1/verify', methods=['POST'])
-def verify_post():
+@app.route('/api/v1/build', methods=['POST'])
+def build_post():
   request_data = request.get_json()
 
   # Validación parámetro image
@@ -99,32 +81,90 @@ def verify_post():
   if not os.path.exists(image_path):
     return jsonify(message='Archivo inexistente: '+image_path), 400
 
-  files = [[os.path.join(request_data['path'], f), image_path] for f in os.listdir(request_data['path']) if f.endswith('.jpg') and f != request_data['image']]
-  if len(files) < 1:
-    return jsonify(message='No existen suficientes imágenes para comparar'), 400
-
   try:
-    distances = DeepFace.verify(files, model_name=os.environ.get('DF_VERIFY_MODEL'), model=model_verify, detector_backend=os.environ.get('DF_VERIFY_BACKEND'), distance_metric=os.environ.get('DF_VERIFY_METRIC'))
-    trues = 0
-    falses = 0
-    for distance in distances.values():
-      if distance['verified']:
-        trues += 1
-      else:
-        falses += 1
-    verified = True if trues > falses else False
-
+    image = face_recognition.load_image_file(image_path)
+    encoding = face_recognition.face_encodings(image)
+    if len(encoding) != 1:
+      return jsonify({
+        'message': 'Imagen inválida',
+      }), 400
+    encoding_file = os.path.join(request_data['path'], request_data['image'].split('.')[0]+'.npy')
+    np.save(encoding_file, encoding[0])
     return jsonify({
-      'message': 'Verificación realizada',
+      'message': 'Modelo generado',
       'data': {
-        'verfied': verified,
-        'distances': distances
+        'file': encoding_file
       }
     })
   except:
     return jsonify({
       'message': 'Imagen inválida',
     }), 400
+
+
+@app.route('/api/v1/verify', methods=['POST'])
+def verify_post():
+  request_data = request.get_json()
+
+  # Validación parámetro threshold
+  if not 'threshold' in request_data:
+    threshold = 0.4
+  else:
+    if not isinstance(request_data['threshold'], float) or request_data['threshold'] <= 0 or request_data['threshold'] is None:
+      return jsonify(message='El parámetro threshold debe ser mayor a 0'), 400
+
+  # Validación parámetro image
+  if not 'image' in request_data:
+    return jsonify(message='El parámetro image es requerido'), 400
+  else:
+    if not isinstance(request_data['image'], str) or len(request_data['image']) < 5 or request_data['image'] is None:
+      return jsonify(message='El parámetro image es requerido'), 400
+
+  # Validación parámetro path
+  if not 'path' in request_data:
+    return jsonify(message='El parámetro path es requerido'), 400
+  elif not isinstance(request_data['path'], str) or request_data['path'] is None:
+    return jsonify(message='El parámetro path debe ser una cadena de texto'), 400
+  else:
+    if not os.path.exists(request_data['path']):
+      return jsonify(message='Ruta de almacenamiento es inválida'), 400
+
+  image_path = os.path.join(request_data['path'], request_data['image'])
+  if not os.path.exists(image_path):
+    return jsonify(message='Archivo inexistente: '+image_path), 400
+
+  try:
+    files = [np.load(os.path.join(request_data['path'], f)) for f in os.listdir(request_data['path']) if f.endswith('.npy')]
+    if len(files) < 1:
+      return jsonify(message='No existen suficientes modelos para comparar'), 400
+
+    test_image = face_recognition.load_image_file(image_path)
+    test_encoding = face_recognition.face_encodings(test_image)
+    if len(test_encoding) != 1:
+      return jsonify({
+        'message': 'Imagen inválida',
+      }), 400
+
+    distances = face_recognition.face_distance(files, test_encoding[0])
+    if np.mean(distances) <= threshold:
+      verified = True
+    else:
+      verified = False
+
+    print(verified)
+
+    return jsonify({
+      'message': 'Verificación realizada',
+      'data': {
+        'verfied': verified,
+        'distances': distances.tolist()
+      }
+    })
+  except:
+    return jsonify({
+      'message': 'Imagen inválida',
+    }), 400
+
 
 @app.route('/api/v1/analyze', methods=['POST'])
 def analyze_post():
