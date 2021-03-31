@@ -33,11 +33,11 @@ class ModelDownloadCommand(cmd.Command):
   def run(self):
     if not path.exists(self.home+"/.deepface"):
       mkdir(self.home+"/.deepface")
-      print("Directory ",home,"/.deepface created")
+      print("Directory ",self.home,"/.deepface created")
 
     if not path.exists(self.home+"/.deepface/weights"):
       mkdir(self.home+"/.deepface/weights")
-      print("Directory ",home,"/.deepface/weights created")
+      print("Directory ",self.home,"/.deepface/weights created")
 
     if path.isfile(self.home+'/.deepface/weights/shape_predictor_68_face_landmarks.dat') != True:
       print("shape_predictor_68_face_landmarks.dat.bz2 is going to be downloaded")

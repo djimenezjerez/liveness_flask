@@ -52,6 +52,13 @@ else:
 # Construcción de parámetros de análisis facial
 mdists = np.zeros((4, 1), dtype=np.float64)
 
+# Validación del directorio de almacenamiento de imágenes
+if not os.path.exists(os.environ.get('DF_STORAGE_PATH')):
+  print('Ruta de almacenamiento de imágenes inválida: '+os.environ.get('DF_STORAGE_PATH'))
+  exit(1)
+else:
+  path = os.environ.get('DF_STORAGE_PATH')
+
 # Restringir consultas a application/json
 @app.before_request
 def only_json():
@@ -63,6 +70,16 @@ def only_json():
 def build_post():
   request_data = request.get_json()
 
+  # Validación parámetro id
+  if not 'id' in request_data:
+    return jsonify(message='El parámetro id es requerido'), 400
+  elif not isinstance(request_data['id'], int) or request_data['id'] <= 0 or request_data['id'] is None:
+    return jsonify(message='El parámetro id debe un entero mayor a 0'), 400
+  else:
+    affiliate_path = os.path.join(path, str(request_data['id']))
+    if not os.path.exists(affiliate_path):
+      os.mkdir(affiliate_path)
+
   # Validación parámetro image
   if not 'image' in request_data:
     return jsonify(message='El parámetro image es requerido'), 400
@@ -70,16 +87,7 @@ def build_post():
     if not isinstance(request_data['image'], str) or len(request_data['image']) < 5 or request_data['image'] is None:
       return jsonify(message='El parámetro image es requerido'), 400
 
-  # Validación parámetro path
-  if not 'path' in request_data:
-    return jsonify(message='El parámetro path es requerido'), 400
-  elif not isinstance(request_data['path'], str) or request_data['path'] is None:
-    return jsonify(message='El parámetro path debe ser una cadena de texto'), 400
-  else:
-    if not os.path.exists(request_data['path']):
-      return jsonify(message='Ruta de almacenamiento es inválida'), 400
-
-  image_path = os.path.join(request_data['path'], request_data['image'])
+  image_path = os.path.join(affiliate_path, request_data['image'])
   if not os.path.exists(image_path):
     return jsonify(message='Archivo inexistente: '+image_path), 400
 
@@ -90,7 +98,7 @@ def build_post():
       return jsonify({
         'message': 'Imagen inválida',
       }), 400
-    encoding_file = os.path.join(request_data['path'], request_data['image'].split('.')[0]+'.npy')
+    encoding_file = os.path.join(affiliate_path, request_data['image'].split('.')[0]+'.npy')
     np.save(encoding_file, encoding[0])
     return jsonify({
       'message': 'Modelo generado',
@@ -108,6 +116,16 @@ def build_post():
 def remove_post():
   request_data = request.get_json()
 
+  # Validación parámetro id
+  if not 'id' in request_data:
+    return jsonify(message='El parámetro id es requerido'), 400
+  elif not isinstance(request_data['id'], int) or request_data['id'] <= 0 or request_data['id'] is None:
+    return jsonify(message='El parámetro id debe un entero mayor a 0'), 400
+  else:
+    affiliate_path = os.path.join(path, str(request_data['id']))
+    if not os.path.exists(affiliate_path):
+      os.mkdir(affiliate_path)
+
   # Validación parámetro image
   if not 'image' in request_data:
     return jsonify(message='El parámetro image es requerido'), 400
@@ -115,20 +133,11 @@ def remove_post():
     if not isinstance(request_data['image'], str) or len(request_data['image']) < 5 or request_data['image'] is None:
       return jsonify(message='El parámetro image es requerido'), 400
 
-  # Validación parámetro path
-  if not 'path' in request_data:
-    return jsonify(message='El parámetro path es requerido'), 400
-  elif not isinstance(request_data['path'], str) or request_data['path'] is None:
-    return jsonify(message='El parámetro path debe ser una cadena de texto'), 400
-  else:
-    if not os.path.exists(request_data['path']):
-      return jsonify(message='Ruta de almacenamiento es inválida'), 400
-
-  image_path = os.path.join(request_data['path'], request_data['image'])
+  image_path = os.path.join(affiliate_path, request_data['image'])
   if os.path.exists(image_path):
     os.remove(image_path)
 
-  encoding_file = os.path.join(request_data['path'], request_data['image'].split('.')[0]+'.npy')
+  encoding_file = os.path.join(affiliate_path, request_data['image'].split('.')[0]+'.npy')
   if os.path.exists(encoding_file):
     os.remove(encoding_file)
 
@@ -147,9 +156,19 @@ def remove_post():
 def verify_post():
   request_data = request.get_json()
 
+  # Validación parámetro id
+  if not 'id' in request_data:
+    return jsonify(message='El parámetro id es requerido'), 400
+  elif not isinstance(request_data['id'], int) or request_data['id'] <= 0 or request_data['id'] is None:
+    return jsonify(message='El parámetro id debe un entero mayor a 0'), 400
+  else:
+    affiliate_path = os.path.join(path, str(request_data['id']))
+    if not os.path.exists(affiliate_path):
+      os.mkdir(affiliate_path)
+
   # Validación parámetro threshold
   if not 'threshold' in request_data:
-    threshold = 0.4
+    threshold = 0.5
   else:
     if not isinstance(request_data['threshold'], float) or request_data['threshold'] <= 0 or request_data['threshold'] is None:
       return jsonify(message='El parámetro threshold debe ser mayor a 0'), 400
@@ -163,21 +182,12 @@ def verify_post():
     if not isinstance(request_data['image'], str) or len(request_data['image']) < 5 or request_data['image'] is None:
       return jsonify(message='El parámetro image es requerido'), 400
 
-  # Validación parámetro path
-  if not 'path' in request_data:
-    return jsonify(message='El parámetro path es requerido'), 400
-  elif not isinstance(request_data['path'], str) or request_data['path'] is None:
-    return jsonify(message='El parámetro path debe ser una cadena de texto'), 400
-  else:
-    if not os.path.exists(request_data['path']):
-      return jsonify(message='Ruta de almacenamiento es inválida'), 400
-
-  image_path = os.path.join(request_data['path'], request_data['image'])
+  image_path = os.path.join(affiliate_path, request_data['image'])
   if not os.path.exists(image_path):
     return jsonify(message='Archivo inexistente: '+image_path), 400
 
   try:
-    files = [np.load(os.path.join(request_data['path'], f)) for f in os.listdir(request_data['path']) if f.endswith('.npy')]
+    files = [np.load(os.path.join(affiliate_path, f)) for f in os.listdir(affiliate_path) if f.endswith('.npy')]
     if len(files) < 1:
       return jsonify(message='No existen suficientes modelos para comparar'), 400
 
@@ -211,16 +221,15 @@ def verify_post():
 def analyze_post():
   request_data = request.get_json()
 
-  # Validación parámetro path
-  if not 'path' in request_data:
-    return jsonify(message='El parámetro path es requerido'), 400
-  elif not isinstance(request_data['path'], str) or request_data['path'] is None:
-    return jsonify(message='El parámetro path debe ser una cadena de texto'), 400
+  # Validación parámetro id
+  if not 'id' in request_data:
+    return jsonify(message='El parámetro id es requerido'), 400
+  elif not isinstance(request_data['id'], int) or request_data['id'] <= 0 or request_data['id'] is None:
+    return jsonify(message='El parámetro id debe un entero mayor a 0'), 400
   else:
-    if not os.path.exists(request_data['path']):
-      return jsonify(message='Ruta de almacenamiento es inválida'), 400
-    else:
-      image_path = request_data['path']
+    affiliate_path = os.path.join(path, str(request_data['id']))
+    if not os.path.exists(affiliate_path):
+      os.mkdir(affiliate_path)
 
   # Validación parámetro is_base64
   if not 'is_base64' in request_data:
@@ -246,9 +255,9 @@ def analyze_post():
       if not isinstance(request_data['image'], str) or len(request_data['image']) < 100 or request_data['image'] is None:
         return jsonify(message='La cadena de texto en base64 image debe tener al menos 100 caracteres'), 400
       else:
-        image_path = os.path.join(image_path, str(uuid.uuid4().hex)+'.jpg')
+        image_path = os.path.join(affiliate_path, str(uuid.uuid4().hex)+'.jpg')
     else:
-      image_path = os.path.join(image_path, request_data['image'])
+      image_path = os.path.join(affiliate_path, request_data['image'])
       if not os.path.exists(image_path):
         return jsonify(message='Archivo inexistente: '+image_path), 400
 
@@ -307,7 +316,7 @@ def analyze_post():
 if __name__ == '__main__':
   app.run(
     host='0.0.0.0',
-    port=int(os.environ.get('APP_PORT')),
+    port=5000,
     debug=utils.str2bool(os.environ.get('APP_DEBUG')),
     threaded=False,
   )

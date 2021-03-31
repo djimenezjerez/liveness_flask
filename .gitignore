@@ -2,6 +2,7 @@ __pycache__
 venv
 .python-version
 .env
+.deepface
 models/training/*
 models/others/*
 datasets/*
