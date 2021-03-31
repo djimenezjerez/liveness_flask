@@ -306,7 +306,6 @@ def analyze_post():
 # Aplicación principal
 if __name__ == '__main__':
   app.run(
-    app,
     host='0.0.0.0',
     port=int(os.environ.get('APP_PORT')),
     debug=utils.str2bool(os.environ.get('APP_DEBUG')),
