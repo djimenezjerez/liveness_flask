@@ -38,6 +38,10 @@ import uuid
 import json
 import face_recognition
 
+# Constantes para detección de ángulo de visión y margen en imágenes de rostros
+face_padding = 15
+gaze_angle = 15
+
 # Construcción del modelo para acciones de análisis
 available_actions = ['Emotion', 'Age', 'Gender', 'Race']
 selected_actions = json.loads(os.environ.get('DF_ANALYZE_MODELS'))
@@ -112,16 +116,16 @@ def crop_post():
       areas.append(x * y)
     face = faces[areas.index(max(areas))]
     height, width, channels = image.shape
-    top = face[0] - 15
+    top = face[0] - face_padding
     if top < 0:
       top = 0
-    bottom = face[2] + 15
+    bottom = face[2] + face_padding
     if bottom > height:
       bottom = height
-    left = face[3] - 15
+    left = face[3] - face_padding
     if left < 0:
       left = 0
-    right = face[1] + 15
+    right = face[1] + face_padding
     if right > width:
       right = width
     image = image[top:bottom, left:right]
@@ -361,9 +365,9 @@ def analyze_post():
       # Cálculo del ángulo del rostro
       rmat, jac = cv2.Rodrigues(rotationVector)
       angles, mtxR, mtxQ, Qx, Qy, Qz = cv2.RQDecomp3x3(rmat)
-      if angles[1] < -15:
+      if angles[1] < (-1 * gaze_angle):
         gaze = 'left'
-      elif angles[1] > 15:
+      elif angles[1] > gaze_angle:
         gaze = 'right'
       else:
         gaze = 'forward'
