@@ -25,6 +25,7 @@ import numpy as np
 import string
 import random
 import re
+import imutils
 from io import BytesIO
 from pathlib import Path
 from PIL import Image
@@ -64,6 +65,77 @@ else:
 def only_json():
   if not request.is_json:
     return jsonify(message='Solo se permiten consultas de tipo application/json'), 400
+
+# Generar modelo facial en base a una imagen
+@app.route('/api/v1/crop', methods=['POST'])
+def crop_post():
+  request_data = request.get_json()
+
+  # Validación parámetro id
+  if not 'id' in request_data:
+    return jsonify(message='El parámetro id es requerido'), 400
+  elif not isinstance(request_data['id'], int) or request_data['id'] <= 0 or request_data['id'] is None:
+    return jsonify(message='El parámetro id debe un entero mayor a 0'), 400
+  else:
+    affiliate_path = os.path.join(path, str(request_data['id']))
+    if not os.path.exists(affiliate_path):
+      os.mkdir(affiliate_path)
+
+  # Validación parámetro image
+  if not 'image' in request_data:
+    return jsonify(message='El parámetro image es requerido'), 400
+  else:
+    if not isinstance(request_data['image'], str) or len(request_data['image']) < 5 or request_data['image'] is None:
+      return jsonify(message='El parámetro image es requerido'), 400
+
+  image_path = os.path.join(affiliate_path, request_data['image'])
+  if not os.path.exists(image_path):
+    return jsonify(message='Archivo inexistente: '+image_path), 400
+
+  try:
+    image = face_recognition.load_image_file(image_path)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    for i in range(4):
+      faces = face_recognition.face_locations(image)
+      if len(faces) > 0:
+        break
+      else:
+        image = imutils.rotate(image, angle=90)
+    if len(faces) == 0:
+      return jsonify({
+        'message': 'Imagen inválida',
+      }), 400
+    areas = []
+    for i, face in enumerate(faces):
+      y = face[2] - face[0]
+      x = face[1] - face[3]
+      areas.append(x * y)
+    face = faces[areas.index(max(areas))]
+    height, width, channels = image.shape
+    top = face[0] - 15
+    if top < 0:
+      top = 0
+    bottom = face[2] + 15
+    if bottom > height:
+      bottom = height
+    left = face[3] - 15
+    if left < 0:
+      left = 0
+    right = face[1] + 15
+    if right > width:
+      right = width
+    image = image[top:bottom, left:right]
+    cv2.imwrite(image_path, image)
+    return jsonify({
+      'message': 'Imagen recortada',
+      'data': {
+        'file': image_path
+      }
+    })
+  except:
+    return jsonify({
+      'message': 'Imagen inválida',
+    }), 400
 
 # Generar modelo facial en base a una imagen
 @app.route('/api/v1/build', methods=['POST'])

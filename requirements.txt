@@ -24,6 +24,7 @@ grpcio==1.32.0
 h5py==2.10.0
 idna==2.10
 importlib-metadata==1.6.1
+imutils==0.5.4
 itsdangerous==1.1.0
 Jinja2==2.11.3
 Keras==2.4.3
@@ -42,6 +43,7 @@ opencv-python==4.5.1.48
 opt-einsum==3.3.0
 pandas==1.2.3
 Pillow==8.1.2
+plum-py==0.3.1
 protobuf==3.15.6
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
