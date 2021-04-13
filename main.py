@@ -39,8 +39,8 @@ import json
 import face_recognition
 
 # Constantes para detección de ángulo de visión y margen en imágenes de rostros
-face_padding = 15
-gaze_angle = 15
+face_padding = 30
+gaze_angle = 10
 
 # Construcción del modelo para acciones de análisis
 available_actions = ['Emotion', 'Age', 'Gender', 'Race']
@@ -115,21 +115,19 @@ def crop_post():
       x = face[1] - face[3]
       areas.append(x * y)
     face = faces[areas.index(max(areas))]
-    height, width, channels = image.shape
-    top = face[0] - face_padding
-    if top < 0:
-      top = 0
-    bottom = face[2] + face_padding
-    if bottom > height:
-      bottom = height
-    left = face[3] - face_padding
-    if left < 0:
-      left = 0
-    right = face[1] + face_padding
-    if right > width:
-      right = width
-    image = image[top:bottom, left:right]
-    cv2.imwrite(image_path, image)
+    y = face[0] - face_padding
+    if y < 0:
+      y = 0
+    x = face[3] - face_padding
+    if x < 0:
+      x = 0
+    h = face[2] + face_padding
+    w = face[1] + face_padding
+    image = image[y:h, x:w]
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)[1]
+    x, y, w, h = cv2.boundingRect(thresh)
+    cv2.imwrite(image_path, image[y:y+h, x:x+w,:])
     return jsonify({
       'message': 'Imagen recortada',
       'data': {
