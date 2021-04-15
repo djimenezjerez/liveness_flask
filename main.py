@@ -56,6 +56,7 @@ else:
 
 # Construcción de parámetros de análisis facial
 mdists = np.zeros((4, 1), dtype=np.float64)
+face3Dmodel = utils.ref3DModel()
 
 # Validación del directorio de almacenamiento de imágenes
 if not os.path.exists(os.environ.get('DF_STORAGE_PATH')):
@@ -335,6 +336,24 @@ def analyze_post():
       if not os.path.exists(image_path):
         return jsonify(message='Archivo inexistente: '+image_path), 400
 
+  # Validación parámetro gaze
+  if not 'gaze' in request_data:
+    get_gaze = True
+  else:
+    if not isinstance(request_data['gaze'], bool):
+      get_gaze = True
+    else:
+      get_gaze = utils.str2bool(str(request_data['gaze']))
+
+  # Validación parámetro emotion
+  if not 'gaze' in request_data:
+    get_emotion = True
+  else:
+    if not isinstance(request_data['emotion'], bool):
+      get_emotion = True
+    else:
+      get_emotion = utils.str2bool(str(request_data['emotion']))
+
   try:
     if is_base64:
       contains_base64 = request_data['image'].find('base64,')
@@ -347,31 +366,37 @@ def analyze_post():
       img = cv2.imread(image_path, 1)
 
     faces = detector(img, 0)
+    # faces = face_recognition.face_locations(image)
 
     if len(faces) == 1:
-      face3Dmodel = utils.ref3DModel()
-      face = faces[0]
-      shape = predictor(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), face)
-      refImgPts = utils.ref2dImagePoints(shape)
-      height, width, channel = img.shape
-      focalLength = 1 * width
-      cameraMatrix = utils.cameraMatrix(focalLength, (height / 2, width / 2))
+      if get_gaze:
+        face = faces[0]
+        shape = predictor(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), face)
+        refImgPts = utils.ref2dImagePoints(shape)
+        height, width, channel = img.shape
+        focalLength = 1 * width
+        cameraMatrix = utils.cameraMatrix(focalLength, (height / 2, width / 2))
 
-      # Cálculo de vector de rotación y traslación mediante solvePnP
-      success, rotationVector, translationVector = cv2.solvePnP(face3Dmodel, refImgPts, cameraMatrix, mdists)
+        # Cálculo de vector de rotación y traslación mediante solvePnP
+        success, rotationVector, translationVector = cv2.solvePnP(face3Dmodel, refImgPts, cameraMatrix, mdists)
 
-      # Cálculo del ángulo del rostro
-      rmat, jac = cv2.Rodrigues(rotationVector)
-      angles, mtxR, mtxQ, Qx, Qy, Qz = cv2.RQDecomp3x3(rmat)
-      if angles[1] < (-1 * gaze_angle):
-        gaze = 'left'
-      elif angles[1] > gaze_angle:
-        gaze = 'right'
+        # Cálculo del ángulo del rostro
+        rmat, jac = cv2.Rodrigues(rotationVector)
+        angles, mtxR, mtxQ, Qx, Qy, Qz = cv2.RQDecomp3x3(rmat)
+        if angles[1] < (-1 * gaze_angle):
+          gaze = 'left'
+        elif angles[1] > gaze_angle:
+          gaze = 'right'
+        else:
+          gaze = 'forward'
       else:
-        gaze = 'forward'
+        gaze = 'undefined'
 
       # DeepFace analysis
-      df_analysis = DeepFace.analyze(image_path, models=model_actions, actions=selected_actions, detector_backend=os.environ.get('DF_ANALYZE_BACKEND'))
+      if get_emotion:
+        df_analysis = DeepFace.analyze(image_path, models=model_actions, actions=selected_actions, detector_backend=os.environ.get('DF_ANALYZE_BACKEND'))
+      else:
+        df_analysis = None
 
       return jsonify({
         'message': 'Imagen analizada',
