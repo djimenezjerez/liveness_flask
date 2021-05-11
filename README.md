@@ -26,12 +26,30 @@ $ pip install -r requirements.txt
 $ ./setup.py model_download
 ```
 
+* Generar y modificar el archivo de variables de entorno
+
+```
+$ cp .env.example .env
+```
+
+* Iniciar el servidor
+
+```
+$ flask run --host=0.0.0.0
+```
+
 ## DESPLIEGUE CON DOCKER
 
 * Construir la imagen de python
 
 ```
 $ docker build -t liveness_flask .
+```
+
+* Generar y modificar el archivo de variables de entorno
+
+```
+$ cp .env.example .env
 ```
 
 * Levantar el contenedor modificando los parámetros requeridos
