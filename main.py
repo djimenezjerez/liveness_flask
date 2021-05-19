@@ -241,14 +241,14 @@ def verify_post():
     if not os.path.exists(affiliate_path):
       os.mkdir(affiliate_path)
 
-  # Validación parámetro threshold
-  if not 'threshold' in request_data:
-    threshold = 0.5
+  # Validación parámetro distance
+  if not 'distance' in request_data:
+    distance = 0.5
   else:
-    if not isinstance(request_data['threshold'], float) or request_data['threshold'] <= 0 or request_data['threshold'] is None:
-      return jsonify(message='El parámetro threshold debe ser mayor a 0'), 400
+    if not isinstance(request_data['distance'], float) or request_data['distance'] <= 0 or request_data['distance'] is None:
+      return jsonify(message='El parámetro distance debe ser mayor a 0'), 400
     else:
-      threshold = request_data['threshold']
+      distance = request_data['distance']
 
   # Validación parámetro image
   if not 'image' in request_data:
@@ -274,7 +274,7 @@ def verify_post():
       }), 400
 
     distances = face_recognition.face_distance(files, test_encoding[0])
-    if np.mean(distances) <= threshold:
+    if np.mean(distances) <= distance:
       verified = True
     else:
       verified = False
